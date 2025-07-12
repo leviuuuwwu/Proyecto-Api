@@ -39,16 +39,21 @@ export class AudioUploadController {
     },
   })
   async uploadAudio(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
-    if (!file) {
-      throw new HttpException('Archivo no enviado', HttpStatus.BAD_REQUEST);
-    }
-
-    const usuario = req.user;
-    const resultado = await this.audioUploadService.uploadAudio(file, usuario);
-
-    return {
-      mensaje: 'Audio subido y transcrito exitosamente',
-      ...resultado,
-    };
+  if (!file) {
+    throw new HttpException('Archivo no enviado', HttpStatus.BAD_REQUEST);
   }
+
+  const usuario = req.user;
+
+  if (!usuario || !usuario.id) {
+    throw new HttpException('Usuario no autenticado correctamente', HttpStatus.UNAUTHORIZED);
+  }
+
+  const resultado = await this.audioUploadService.uploadAudio(file, usuario);
+
+  return {
+    mensaje: 'Audio subido y transcrito exitosamente',
+    ...resultado,
+  };
+}
 }

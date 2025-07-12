@@ -26,7 +26,7 @@ export class AudioUploadService {
 
   async uploadAudio(
     file: Express.Multer.File,
-    usuario: User, // o el ID del usuario autenticado
+    usuario: User, // 
   ): Promise<{ url: string; transcripcion: string }> {
     const uniqueFileName = `${uuid()}_${file.originalname}`;
     const bucket = this.storage.bucket(this.bucketName);

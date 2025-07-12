@@ -25,7 +25,7 @@ export class SpeechService {
     const audio = { uri: gcsUri };
 
     const config = {
-      encoding: speech.protos.google.cloud.speech.v1.RecognitionConfig.AudioEncoding.MP3,
+      encoding: speech.protos.google.cloud.speech.v1.RecognitionConfig.AudioEncoding.LINEAR16,
       languageCode: 'en-US',
       enableAutomaticPunctuation: true,
       enableWordTimeOffsets: true,
@@ -38,7 +38,7 @@ export class SpeechService {
     try {
       const [operation] = await this.client.longRunningRecognize(request);
       const [response] = await operation.promise();
-      console.log('📄 Respuesta completa:', JSON.stringify(response, null, 2));
+      console.log('📄 RESPUESTA DE GOOGLE:', JSON.stringify(response, null, 2));
 
       const palabrasConTimestamps: {
         palabra: string;

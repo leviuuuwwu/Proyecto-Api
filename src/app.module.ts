@@ -5,6 +5,8 @@ import { typeOrmConfig } from './typeorm.config';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { AudioUploadModule } from './audio-upload/audio-upload.module';
+import { AudioSubido } from './audio-upload/audio-upload.entity';
+
 
 @Module({
   imports: [
@@ -13,6 +15,7 @@ import { AudioUploadModule } from './audio-upload/audio-upload.module';
     UsersModule,
     AuthModule,
     AudioUploadModule,
+    AudioSubido,
   ],
 })
 export class AppModule {}
