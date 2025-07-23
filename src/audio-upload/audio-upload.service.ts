@@ -7,7 +7,8 @@ import { TranscripcionService } from '../transcripcion/transcripcion.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AudioSubido } from './audio-upload.entity';
-import { User } from '../users/user.entity'; // si lo necesitas
+import { User } from '../users/user.entity';
+import { HistorialProcesamiento } from '../historial/historial.entity';
 
 @Injectable()
 export class AudioUploadService {
@@ -22,11 +23,13 @@ export class AudioUploadService {
     private transcripcionService: TranscripcionService,
     @InjectRepository(AudioSubido)
     private audioRepo: Repository<AudioSubido>,
+    @InjectRepository(HistorialProcesamiento)
+    private historialRepo: Repository<HistorialProcesamiento>,
   ) {}
 
   async uploadAudio(
     file: Express.Multer.File,
-    usuario: User, // 
+    usuario: User,
   ): Promise<{ url: string; transcripcion: string }> {
     const uniqueFileName = `${uuid()}_${file.originalname}`;
     const bucket = this.storage.bucket(this.bucketName);
@@ -44,23 +47,43 @@ export class AudioUploadService {
       this.audioRepo.create({
         id: uuid(),
         url: publicUrl,
-        usuario: usuario, 
+        usuario: usuario,
       }),
     );
 
-    // Transcripción automática
-    const resultado = await this.speechService.transcribirAudio(gcsUri);
-
-    await this.transcripcionService.crearDesdeSpeech(
-      resultado.texto,
-      resultado.palabrasConTimestamps,
-      resultado.cantidadHablantes,
+    await this.transcripcionService.registrarEvento(
       audioGuardado,
+      'SUBIDA',
+      'Audio subido con éxito',
     );
 
-    return {
-      url: publicUrl,
-      transcripcion: resultado.texto,
-    };
+    try {
+      const resultado = await this.speechService.transcribirAudio(gcsUri);
+
+      await this.transcripcionService.crearDesdeSpeech(
+        resultado.texto,
+        resultado.palabrasConTimestamps,
+        resultado.cantidadHablantes,
+        audioGuardado,
+      );
+
+      await this.transcripcionService.registrarEvento(
+        audioGuardado,
+        'TRANSCRIPCION',
+        'Transcripción completada correctamente',
+      );
+
+      return {
+        url: publicUrl,
+        transcripcion: resultado.texto,
+      };
+    } catch (error) {
+      await this.transcripcionService.registrarEvento(
+        audioGuardado,
+        'ERROR',
+        `Error en transcripción: ${error.message}`,
+      );
+      throw error;
+    }
   }
 }

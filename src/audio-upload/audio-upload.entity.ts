@@ -1,5 +1,6 @@
 import { Transcripcion } from "src/transcripcion/transcripcion.entity";
 import { User } from "src/users/user.entity";
+import { HistorialProcesamiento } from "src/historial/historial.entity";
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne } from 'typeorm';
 
 @Entity()
@@ -15,4 +16,7 @@ export class AudioSubido {
 
   @OneToMany(() => Transcripcion, transcripcion => transcripcion.audio)
   transcripciones: Transcripcion[];
+
+  @OneToMany(() => HistorialProcesamiento, historial => historial.audio, { cascade: true })
+  historial: HistorialProcesamiento[];
 }

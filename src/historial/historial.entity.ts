@@ -17,4 +17,4 @@ export class HistorialProcesamiento {
 
   @ManyToOne(() => AudioSubido, audio => audio.transcripciones)
   audio: AudioSubido;
-}
+} 

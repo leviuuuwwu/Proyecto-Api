@@ -3,21 +3,46 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transcripcion } from './transcripcion.entity';
 import { AudioSubido } from '../audio-upload/audio-upload.entity';
-import { HistorialProcesamiento } from './historial.entity';
-
+import { HistorialService } from '../historial/historial.service';
 
 @Injectable()
 export class TranscripcionService {
   constructor(
+    private readonly historialService: HistorialService,
+
     @InjectRepository(Transcripcion)
-    private historialRepo: Repository<HistorialProcesamiento>,
-    private transcripcionRepo: Repository<Transcripcion>,
+    private readonly transcripcionRepo: Repository<Transcripcion>,
   ) {}
 
-   async registrarEvento(audio: AudioSubido, tipo: 'SUBIDA' | 'TRANSCRIPCION' | 'ERROR', descripcion: string) {
-    const evento = this.historialRepo.create({ audio, tipo, descripcion });
-    return this.historialRepo.save(evento);
+  async registrarEvento(
+    audio: AudioSubido,
+    tipo: 'SUBIDA' | 'TRANSCRIPCION' | 'ERROR',
+    descripcion: string,
+  ) {
+    return this.historialService.registrarEvento(audio, tipo, descripcion);
   }
+
+  async obtenerTranscripcionesPorUsuario(userId: string) {
+  return this.transcripcionRepo.find({
+    where: {
+      audio: {
+        usuario: {
+          id: userId,
+        },
+      },
+    },
+    relations: ['audio'],
+    order: { id: 'DESC' },
+  });
+  }
+
+async obtenerPorId(id: string) {
+  return this.transcripcionRepo.findOne({
+    where: { id },
+    relations: ['audio'],
+  });
+}
+
 
   async crearDesdeSpeech(
     texto: string,
