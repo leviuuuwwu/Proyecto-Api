@@ -11,6 +11,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
+import { Res as NestRes } from '@nestjs/common';
 
 @ApiTags('Transcripciones')
 @ApiBearerAuth()
@@ -33,4 +35,22 @@ export class TranscripcionController {
     if (!transcripcion) throw new NotFoundException('No encontrada');
     return transcripcion;
   }
+
+  @Get(':id/exportar')
+  async exportarTxt(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
+    const transcripcion = await this.transcripcionService.obtenerPorIdConPalabrasClave(id);
+    if (!transcripcion) {
+      throw new NotFoundException('Transcripción no encontrada');
+    }
+
+    const contenido = this.transcripcionService.generarContenidoExportable(transcripcion);
+
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Content-Disposition', `attachment; filename="transcripcion-${id}.txt"`);
+    return contenido;
+  }
+}
+
+function Res(options?: { passthrough: boolean }) {
+  return NestRes(options);
 }

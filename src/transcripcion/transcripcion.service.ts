@@ -4,38 +4,18 @@ import { Repository } from 'typeorm';
 import { Transcripcion } from './transcripcion.entity';
 import { AudioSubido } from '../audio-upload/audio-upload.entity';
 import { HistorialService } from '../historial/historial.service';
-import { PalabraClaveDetectada } from '../audio-analisis/palabra-clave.entity';
+import { PalabraClaveService } from '../audio-analisis/palabra-clave.service'; // ✅ Importa el servicio
 
 @Injectable()
 export class TranscripcionService {
-constructor(
-  private readonly historialService: HistorialService,
+  constructor(
+    private readonly historialService: HistorialService,
 
-  @InjectRepository(Transcripcion)
-  private readonly transcripcionRepo: Repository<Transcripcion>,
+    @InjectRepository(Transcripcion)
+    private readonly transcripcionRepo: Repository<Transcripcion>,
 
-  @InjectRepository(PalabraClaveDetectada)
-  private readonly palabraRepo: Repository<PalabraClaveDetectada>,
-) {}
-
-async detectarPalabrasClave(transcripcion: Transcripcion, keywords: string[]) {
-  const palabrasDetectadas: PalabraClaveDetectada[] = [];
-
-  for (const palabra of transcripcion.palabrasConTimestamps) {
-    if (keywords.includes(palabra.word.toLowerCase())) {
-      palabrasDetectadas.push(
-        this.palabraRepo.create({
-          palabra: palabra.word,
-          timestamp: palabra.startTime,
-          transcripcion,
-        }),
-      );
-    }
-  }
-
-  await this.palabraRepo.save(palabrasDetectadas);
-  return palabrasDetectadas;
-}
+    private readonly palabraClaveService: PalabraClaveService, // ✅ Inyectado correctamente
+  ) {}
 
   async registrarEvento(
     audio: AudioSubido,
@@ -46,25 +26,48 @@ async detectarPalabrasClave(transcripcion: Transcripcion, keywords: string[]) {
   }
 
   async obtenerTranscripcionesPorUsuario(userId: string) {
-  return this.transcripcionRepo.find({
-    where: {
-      audio: {
-        usuario: {
-          id: userId,
+    return this.transcripcionRepo.find({
+      where: {
+        audio: {
+          usuario: {
+            id: userId,
+          },
         },
       },
-    },
-    relations: ['audio'],
-    order: { id: 'DESC' },
-  });
+      relations: ['audio'],
+      order: { id: 'DESC' },
+    });
   }
 
-async obtenerPorId(id: string) {
+  async obtenerPorId(id: string) {
+    return this.transcripcionRepo.findOne({
+      where: { id },
+      relations: ['audio'],
+    });
+  }
+
+  async obtenerPorIdConPalabrasClave(id: string) {
   return this.transcripcionRepo.findOne({
     where: { id },
-    relations: ['audio'],
+    relations: ['audio', 'palabrasClave'],
   });
 }
+
+  generarContenidoExportable(transcripcion: Transcripcion): string {
+      const encabezado = `🎙️ TRANSCRIPCIÓN - ${new Date(transcripcion.creadoEn).toLocaleString()}\n`;
+      const usuario = transcripcion.audio?.usuario?.id || 'Desconocido';
+      const info = `Usuario: ${usuario}\nAudio: ${transcripcion.audio.url}\n\n`;
+
+      const texto = `📝 Texto:\n${transcripcion.texto}\n\n`;
+
+      const palabrasClave = transcripcion.palabrasClave?.length
+        ? `🔍 Palabras Clave Detectadas:\n${transcripcion.palabrasClave
+            .map((p) => `- ${p.palabra} (en ${p.timestamp}s)`)
+            .join('\n')}\n`
+        : '🔍 Palabras Clave: No se detectaron.\n';
+
+      return encabezado + info + texto + palabrasClave;
+    }
 
 
   async crearDesdeSpeech(
@@ -79,6 +82,10 @@ async obtenerPorId(id: string) {
       cantidadHablantes,
       audio,
     });
-    return this.transcripcionRepo.save(nueva);
+
+    const transcripcion = await this.transcripcionRepo.save(nueva);
+    await this.palabraClaveService.detectar(palabrasConTimestamps, transcripcion);
+
+    return transcripcion;
   }
 }
