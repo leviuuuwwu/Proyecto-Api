@@ -2,18 +2,21 @@ import { Injectable } from '@nestjs/common';
 import { Storage } from '@google-cloud/storage';
 import { v4 as uuid } from 'uuid';
 import * as path from 'path';
-import { SpeechService } from '../transcripcion/speech.service';
+import { SpeechService } from '../speech/speech.service';
 import { TranscripcionService } from '../transcripcion/transcripcion.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AudioSubido } from './audio-upload.entity';
 import { User } from '../users/user.entity';
-import { HistorialProcesamiento } from '../historial/historial.entity';
+import { HistorialService } from '../historial/historial.service';
 
 @Injectable()
 export class AudioUploadService {
   private storage = new Storage({
-    keyFilename: path.join(__dirname, '../../google-credentials.json'),
+    keyFilename: path.resolve(
+      process.cwd(),
+      process.env.GOOGLE_APPLICATION_CREDENTIALS ?? (() => { throw new Error('GOOGLE_APPLICATION_CREDENTIALS env variable is not set'); })()
+    ),
   });
 
   private bucketName = 'sonidoclaro-audios';
@@ -21,10 +24,9 @@ export class AudioUploadService {
   constructor(
     private speechService: SpeechService,
     private transcripcionService: TranscripcionService,
+    private readonly historialService: HistorialService,
     @InjectRepository(AudioSubido)
     private audioRepo: Repository<AudioSubido>,
-    @InjectRepository(HistorialProcesamiento)
-    private historialRepo: Repository<HistorialProcesamiento>,
   ) {}
 
   async uploadAudio(
@@ -47,7 +49,7 @@ export class AudioUploadService {
       this.audioRepo.create({
         id: uuid(),
         url: publicUrl,
-        usuario: usuario,
+        usuario,
       }),
     );
 
@@ -62,7 +64,7 @@ export class AudioUploadService {
 
       await this.transcripcionService.crearDesdeSpeech(
         resultado.texto,
-        resultado.palabrasConTimestamps,
+        resultado.palabrasConTimestamps as any[],
         resultado.cantidadHablantes,
         audioGuardado,
       );
@@ -78,6 +80,7 @@ export class AudioUploadService {
         transcripcion: resultado.texto,
       };
     } catch (error) {
+      console.error('❌ Error al transcribir:', error);
       await this.transcripcionService.registrarEvento(
         audioGuardado,
         'ERROR',

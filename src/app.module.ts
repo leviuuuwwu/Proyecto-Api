@@ -6,7 +6,8 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { AudioUploadModule } from './audio-upload/audio-upload.module';
 import { AudioSubido } from './audio-upload/audio-upload.entity';
-
+import { PalabraClaveDetectada } from './audio-analisis/palabra-clave.entity';
+import { HistorialProcesamiento } from './historial/historial.entity';
 
 @Module({
   imports: [
@@ -14,6 +15,8 @@ import { AudioSubido } from './audio-upload/audio-upload.entity';
     TypeOrmModule.forRootAsync(typeOrmConfig),
     UsersModule,
     AuthModule,
+    PalabraClaveDetectada,
+    HistorialProcesamiento,
     AudioUploadModule,
     AudioSubido,
   ],

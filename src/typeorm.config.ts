@@ -1,9 +1,6 @@
+import { join } from 'path';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { User } from './users/user.entity';
-import { AudioSubido } from './audio-upload/audio-upload.entity'
-import { Transcripcion } from './transcripcion/transcripcion.entity';
-
 
 export const typeOrmConfig = {
   imports: [ConfigModule],
@@ -15,8 +12,8 @@ export const typeOrmConfig = {
     username: configService.get<string>('DB_USERNAME'),
     password: configService.get<string>('DB_PASSWORD'),
     database: configService.get<string>('DB_DATABASE'),
-    entities: [User, AudioSubido, Transcripcion],
-    synchronize: true, 
+    entities: [join(__dirname, '..', '**', '*.entity.{js,ts}')],
+    synchronize: true,
     logging: true,
   }),
 };

@@ -5,11 +5,15 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AudioSubido } from './audio-upload.entity';
 import { Transcripcion } from '../transcripcion/transcripcion.entity';
 import { TranscripcionModule } from '../transcripcion/transcripcion.module';
+import { SpeechModule } from '../speech/speech.module';
+import { HistorialModule } from '../historial/historial.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([AudioSubido, Transcripcion]),
     TranscripcionModule,
+    SpeechModule,
+    HistorialModule,
   ],
   controllers: [AudioUploadController],
   providers: [AudioUploadService],

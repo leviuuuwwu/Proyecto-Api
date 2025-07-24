@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AudioUploadService } from './audio-upload.service';
-import { SpeechService } from '../transcripcion/speech.service';
+import { SpeechService } from '../speech/speech.service';
 import { TranscripcionService } from '../transcripcion/transcripcion.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AudioSubido } from './audio-upload.entity';

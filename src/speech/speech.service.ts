@@ -8,7 +8,7 @@ export class SpeechService {
 
   constructor() {
     this.client = new speech.SpeechClient({
-      keyFilename: path.join(__dirname, '../../google-credentials.json'),
+      keyFilename: path.resolve(process.cwd(), process.env.GOOGLE_APPLICATION_CREDENTIALS ?? (() => { throw new Error('GOOGLE_APPLICATION_CREDENTIALS env variable is not set'); })()),
     });
   }
 
