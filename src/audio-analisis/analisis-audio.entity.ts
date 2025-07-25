@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from 'typeorm';
-import { AudioSubido } from 'src/audio-upload/audio-upload.entity';
+import { Transcripcion } from 'src/transcripcion/transcripcion.entity';
 
 @Entity()
 export class AnalisisAudio {
@@ -7,9 +7,9 @@ export class AnalisisAudio {
   id: string;
 
   @Column('jsonb')
-  metrica: any; 
+  metrica: any;
 
-  @OneToOne(() => AudioSubido)
+  @OneToOne(() => Transcripcion, transcripcion => transcripcion.analisis, { onDelete: 'CASCADE' })
   @JoinColumn()
-  audio: AudioSubido;
+  transcripcion: Transcripcion;
 }

@@ -5,6 +5,7 @@ import { Transcripcion } from './transcripcion.entity';
 import { AudioSubido } from '../audio-upload/audio-upload.entity';
 import { HistorialService } from '../historial/historial.service';
 import { PalabraClaveService } from '../audio-analisis/palabra-clave.service'; // ✅ Importa el servicio
+import { AnalisisAudioService } from '../audio-analisis/analisis-audio.service'; // <-- Importa el servicio de análisis
 
 @Injectable()
 export class TranscripcionService {
@@ -15,6 +16,8 @@ export class TranscripcionService {
     private readonly transcripcionRepo: Repository<Transcripcion>,
 
     private readonly palabraClaveService: PalabraClaveService, // ✅ Inyectado correctamente
+
+    private readonly analisisAudioService: AnalisisAudioService, // <-- Inyecta el servicio de análisis
   ) {}
 
   async registrarEvento(
@@ -78,9 +81,9 @@ export class TranscripcionService {
   return encabezado + info + textoPlano + palabrasClave + segmentos;
 }
 
-  async crearDesdeSpeech(
+async crearDesdeSpeech(
   texto: string,
-  palabrasConTimestamps: any,
+  palabrasConTimestamps: any[],
   cantidadHablantes: number,
   segmentosPorHablante: {
     speaker: number;
@@ -89,17 +92,21 @@ export class TranscripcionService {
     texto: string;
   }[],
   audio: AudioSubido,
+  palabrasClave: string[] = [],
 ) {
   const nueva = this.transcripcionRepo.create({
     texto,
     palabrasConTimestamps,
     cantidadHablantes,
-    segmentosPorHablante, // ✅ Se guarda
+    segmentosPorHablante,
     audio,
   });
-
   const transcripcion = await this.transcripcionRepo.save(nueva);
-  await this.palabraClaveService.detectar(palabrasConTimestamps, transcripcion);
+
+  // Elimina esta línea para evitar duplicados:
+  // await this.palabraClaveService.detectar(palabrasConTimestamps, transcripcion, palabrasClave);
+
+  await this.analisisAudioService.analizar(transcripcion);
 
   return transcripcion;
 }

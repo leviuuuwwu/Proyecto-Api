@@ -30,6 +30,12 @@ export class SpeechService {
     }[];
     cantidadHablantes: number;
     segmentosPorHablante: any[];
+    palabrasCrudas: {
+      word: string;
+      startTime?: any;
+      endTime?: any;
+      speakerTag?: number;
+    }[];
   }> {
     const audio = { uri: gcsUri };
     const config = {
@@ -50,12 +56,12 @@ export class SpeechService {
       const [response] = await operation.promise();
       console.log('📄 RESPUESTA DE GOOGLE:', JSON.stringify(response, null, 2));
 
-      // ✅ Buscar la última alternativa con speakerTag
+      // Buscar resultado con diarización
       const ultimaConDiarizacion = [...(response.results ?? [])]
         .reverse()
         .find(r => r.alternatives?.[0]?.words?.some(w => w.speakerTag));
 
-      // ✅ Fallback: concatenar todos los transcripts
+      // Fallback: concatenar todos los transcripts
       const transcription =
         ultimaConDiarizacion?.alternatives?.[0]?.transcript ||
         (response.results ?? [])
@@ -64,7 +70,7 @@ export class SpeechService {
 
       const palabras = ultimaConDiarizacion?.alternatives?.[0]?.words ?? [];
 
-      // ✅ Agrupar por intervalos de 2 segundos
+      // Agrupar por bloques de 2 segundos
       const bloques: {
         palabra: string;
         inicio: number;
@@ -78,6 +84,8 @@ export class SpeechService {
       let hablanteActual = palabras[0]?.speakerTag || null;
 
       for (const word of palabras) {
+        if (!word.word) continue;
+
         const start =
           Number(word.startTime?.seconds || 0) +
           Number(word.startTime?.nanos || 0) / 1e9;
@@ -115,11 +123,21 @@ export class SpeechService {
         });
       }
 
+      const palabrasCrudas = palabras
+        .filter(p => typeof p.word === 'string')
+        .map(p => ({
+          word: p.word!,
+          startTime: p.startTime,
+          endTime: p.endTime,
+          speakerTag: typeof p.speakerTag === 'number' ? p.speakerTag : undefined,
+        }));
+
       return {
         texto: transcription,
         palabrasConTimestamps: bloques,
         cantidadHablantes: new Set(palabras.map(p => p.speakerTag)).size,
-        segmentosPorHablante: [], // Podés reconstruirlos si querés
+        segmentosPorHablante: [], // opcional
+        palabrasCrudas,
       };
     } catch (error) {
       console.error('❌ Error en transcripción:', error?.message || error);

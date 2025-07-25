@@ -4,10 +4,12 @@ import {
   Column,
   ManyToOne,
   CreateDateColumn,
-  OneToMany
+  OneToMany,
+  OneToOne
 } from 'typeorm';
 import { AudioSubido } from '../audio-upload/audio-upload.entity';
 import { PalabraClaveDetectada } from '../audio-analisis/palabra-clave.entity';
+import { AnalisisAudio } from '../audio-analisis/analisis-audio.entity';
 
 @Entity()
 export class Transcripcion {
@@ -31,6 +33,9 @@ export class Transcripcion {
 
   @CreateDateColumn()
   creadoEn: Date;
+
+  @OneToOne(() => AnalisisAudio, analisis => analisis.transcripcion, { cascade: true })
+  analisis: AnalisisAudio;
 
   @Column({ type: 'jsonb', nullable: true })
   segmentosPorHablante: {
