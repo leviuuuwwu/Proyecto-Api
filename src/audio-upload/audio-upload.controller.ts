@@ -9,12 +9,11 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { AudioUploadService } from './audio-upload.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ApiBearerAuth, ApiConsumes, ApiBody, ApiTags } from '@nestjs/swagger';
-import { diskStorage } from 'multer';
+import { AudioUploadService } from './audio-upload.service';
 
 @ApiTags('Audios')
 @ApiBearerAuth()
@@ -24,7 +23,7 @@ export class AudioUploadController {
   constructor(private readonly audioUploadService: AudioUploadService) {}
 
   @Post()
-  @Roles('usuario', 'admin') // Solo usuarios autenticados con rol válido
+  @Roles('usuario', 'admin')
   @UseInterceptors(FileInterceptor('audio'))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -39,21 +38,24 @@ export class AudioUploadController {
     },
   })
   async uploadAudio(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
-  if (!file) {
-    throw new HttpException('Archivo no enviado', HttpStatus.BAD_REQUEST);
+    if (!file) {
+      throw new HttpException('Archivo no enviado', HttpStatus.BAD_REQUEST);
+    }
+
+    const usuario = req.user;
+    if (!usuario || !usuario.id) {
+      throw new HttpException('Usuario no autenticado correctamente', HttpStatus.UNAUTHORIZED);
+    }
+
+    const {
+      url,
+      transcripcion,
+    } = await this.audioUploadService.uploadAudio(file, usuario);
+
+    return {
+      mensaje: 'Audio subido y transcrito exitosamente',
+      url: url,
+      transcripcion: transcripcion,
+    };
   }
-
-  const usuario = req.user;
-
-  if (!usuario || !usuario.id) {
-    throw new HttpException('Usuario no autenticado correctamente', HttpStatus.UNAUTHORIZED);
-  }
-
-  const resultado = await this.audioUploadService.uploadAudio(file, usuario);
-
-  return {
-    mensaje: 'Audio subido y transcrito exitosamente',
-    ...resultado,
-  };
-}
 }

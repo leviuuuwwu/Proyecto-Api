@@ -8,11 +8,19 @@ export class SpeechService {
 
   constructor() {
     this.client = new speech.SpeechClient({
-      keyFilename: path.resolve(process.cwd(), process.env.GOOGLE_APPLICATION_CREDENTIALS ?? (() => { throw new Error('GOOGLE_APPLICATION_CREDENTIALS env variable is not set'); })()),
+      keyFilename: path.resolve(
+        process.cwd(),
+        process.env.GOOGLE_APPLICATION_CREDENTIALS ??
+          (() => {
+            throw new Error('GOOGLE_APPLICATION_CREDENTIALS env variable is not set');
+          })(),
+      ),
     });
   }
 
-  async transcribirAudio(gcsUri: string): Promise<{
+  async transcribirAudio(
+    gcsUri: string,
+  ): Promise<{
     texto: string;
     palabrasConTimestamps: {
       palabra: string;
@@ -21,18 +29,20 @@ export class SpeechService {
       hablante: number | null;
     }[];
     cantidadHablantes: number;
+    segmentosPorHablante: any[];
   }> {
     const audio = { uri: gcsUri };
-
     const config = {
       encoding: speech.protos.google.cloud.speech.v1.RecognitionConfig.AudioEncoding.LINEAR16,
       languageCode: 'en-US',
       enableAutomaticPunctuation: true,
       enableWordTimeOffsets: true,
-      enableSpeakerDiarization: true,
-      diarizationSpeakerCount: 2,
+      diarizationConfig: {
+        enableSpeakerDiarization: true,
+        minSpeakerCount: 2,
+        maxSpeakerCount: 2,
+      },
     };
-
     const request = { audio, config };
 
     try {
@@ -40,37 +50,82 @@ export class SpeechService {
       const [response] = await operation.promise();
       console.log('📄 RESPUESTA DE GOOGLE:', JSON.stringify(response, null, 2));
 
-      const palabrasConTimestamps: {
+      // ✅ Buscar la última alternativa con speakerTag
+      const ultimaConDiarizacion = [...(response.results ?? [])]
+        .reverse()
+        .find(r => r.alternatives?.[0]?.words?.some(w => w.speakerTag));
+
+      // ✅ Fallback: concatenar todos los transcripts
+      const transcription =
+        ultimaConDiarizacion?.alternatives?.[0]?.transcript ||
+        (response.results ?? [])
+          .map(r => r.alternatives?.[0]?.transcript || '')
+          .join(' ');
+
+      const palabras = ultimaConDiarizacion?.alternatives?.[0]?.words ?? [];
+
+      // ✅ Agrupar por intervalos de 2 segundos
+      const bloques: {
         palabra: string;
         inicio: number;
         fin: number;
         hablante: number | null;
       }[] = [];
 
-      const transcription = (response.results ?? [])
-        .map(result => result.alternatives?.[0]?.transcript || '')
-        .join(' ');
+      let bloqueInicio = 0;
+      let bloqueFin = 2;
+      let textoActual = '';
+      let hablanteActual = palabras[0]?.speakerTag || null;
 
-      response.results?.forEach(result => {
-        const words = result.alternatives?.[0]?.words;
-        words?.forEach(wordInfo => {
-          palabrasConTimestamps.push({
-            palabra: wordInfo.word ?? '',
-            inicio: Number(wordInfo.startTime?.seconds || 0),
-            fin: Number(wordInfo.endTime?.seconds || 0),
-            hablante: wordInfo.speakerTag || null,
-          });
+      for (const word of palabras) {
+        const start =
+          Number(word.startTime?.seconds || 0) +
+          Number(word.startTime?.nanos || 0) / 1e9;
+
+        const end =
+          Number(word.endTime?.seconds || 0) +
+          Number(word.endTime?.nanos || 0) / 1e9;
+
+        if (start > bloqueFin) {
+          if (textoActual.trim()) {
+            bloques.push({
+              palabra: textoActual.trim(),
+              inicio: Math.floor(bloqueInicio),
+              fin: Math.floor(bloqueFin),
+              hablante: hablanteActual,
+            });
+          }
+          // Nuevo bloque
+          bloqueInicio = bloqueFin;
+          bloqueFin += 2;
+          textoActual = '';
+        }
+
+        textoActual += word.word + ' ';
+        hablanteActual = word.speakerTag || null;
+      }
+
+      // Push del último bloque
+      if (textoActual.trim()) {
+        bloques.push({
+          palabra: textoActual.trim(),
+          inicio: Math.floor(bloqueInicio),
+          fin: Math.floor(bloqueFin),
+          hablante: hablanteActual,
         });
-      });
+      }
 
       return {
         texto: transcription,
-        palabrasConTimestamps,
-        cantidadHablantes: config.diarizationSpeakerCount,
+        palabrasConTimestamps: bloques,
+        cantidadHablantes: new Set(palabras.map(p => p.speakerTag)).size,
+        segmentosPorHablante: [], // Podés reconstruirlos si querés
       };
     } catch (error) {
       console.error('❌ Error en transcripción:', error?.message || error);
-      throw new InternalServerErrorException(error?.message || 'Error al transcribir el audio');
+      throw new InternalServerErrorException(
+        error?.message || 'Error al transcribir el audio',
+      );
     }
   }
 }

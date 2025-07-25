@@ -54,38 +54,53 @@ export class TranscripcionService {
 }
 
   generarContenidoExportable(transcripcion: Transcripcion): string {
-      const encabezado = `🎙️ TRANSCRIPCIÓN - ${new Date(transcripcion.creadoEn).toLocaleString()}\n`;
-      const usuario = transcripcion.audio?.usuario?.id || 'Desconocido';
-      const info = `Usuario: ${usuario}\nAudio: ${transcripcion.audio.url}\n\n`;
+  const encabezado = `🎙️ TRANSCRIPCIÓN - ${new Date(transcripcion.creadoEn).toLocaleString()}\n`;
+  const usuario = transcripcion.audio?.usuario?.id || 'Desconocido';
+  const info = `Usuario: ${usuario}\nAudio: ${transcripcion.audio.url}\n\n`;
 
-      const texto = `📝 Texto:\n${transcripcion.texto}\n\n`;
+  const textoPlano = `📝 Texto completo:\n${transcripcion.texto}\n\n`;
 
-      const palabrasClave = transcripcion.palabrasClave?.length
-        ? `🔍 Palabras Clave Detectadas:\n${transcripcion.palabrasClave
-            .map((p) => `- ${p.palabra} (en ${p.timestamp}s)`)
-            .join('\n')}\n`
-        : '🔍 Palabras Clave: No se detectaron.\n';
+  const palabrasClave = transcripcion.palabrasClave?.length
+    ? `🔍 Palabras Clave Detectadas:\n${transcripcion.palabrasClave
+        .map((p) => `- ${p.palabra} (en ${p.timestamp}s)`)
+        .join('\n')}\n\n`
+    : '🔍 Palabras Clave: No se detectaron.\n\n';
 
-      return encabezado + info + texto + palabrasClave;
-    }
+  const segmentos = transcripcion.segmentosPorHablante?.length
+    ? `🎭 Segmentos por Hablante:\n${transcripcion.segmentosPorHablante
+        .map(
+          (s) =>
+            `🧑‍💼 Hablante ${s.speaker} (de ${s.inicio}s a ${s.fin}s): ${s.texto}`,
+        )
+        .join('\n')}\n`
+    : '';
 
+  return encabezado + info + textoPlano + palabrasClave + segmentos;
+}
 
   async crearDesdeSpeech(
-    texto: string,
-    palabrasConTimestamps: any,
-    cantidadHablantes: number,
-    audio: AudioSubido,
-  ) {
-    const nueva = this.transcripcionRepo.create({
-      texto,
-      palabrasConTimestamps,
-      cantidadHablantes,
-      audio,
-    });
+  texto: string,
+  palabrasConTimestamps: any,
+  cantidadHablantes: number,
+  segmentosPorHablante: {
+    speaker: number;
+    inicio: number;
+    fin: number;
+    texto: string;
+  }[],
+  audio: AudioSubido,
+) {
+  const nueva = this.transcripcionRepo.create({
+    texto,
+    palabrasConTimestamps,
+    cantidadHablantes,
+    segmentosPorHablante, // ✅ Se guarda
+    audio,
+  });
 
-    const transcripcion = await this.transcripcionRepo.save(nueva);
-    await this.palabraClaveService.detectar(palabrasConTimestamps, transcripcion);
+  const transcripcion = await this.transcripcionRepo.save(nueva);
+  await this.palabraClaveService.detectar(palabrasConTimestamps, transcripcion);
 
-    return transcripcion;
-  }
+  return transcripcion;
+}
 }

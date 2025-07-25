@@ -7,7 +7,7 @@ export class AnalisisAudio {
   id: string;
 
   @Column('jsonb')
-  metrica: any; // puedes cambiar esto por una interfaz si quieres tiparlo mejor
+  metrica: any; 
 
   @OneToOne(() => AudioSubido)
   @JoinColumn()

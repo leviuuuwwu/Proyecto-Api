@@ -32,7 +32,7 @@ export class AudioUploadService {
   async uploadAudio(
     file: Express.Multer.File,
     usuario: User,
-  ): Promise<{ url: string; transcripcion: string }> {
+  ): Promise<{ url: string; transcripcion: any }> {
     const uniqueFileName = `${uuid()}_${file.originalname}`;
     const bucket = this.storage.bucket(this.bucketName);
     const blob = bucket.file(uniqueFileName);
@@ -66,6 +66,7 @@ export class AudioUploadService {
         resultado.texto,
         resultado.palabrasConTimestamps as any[],
         resultado.cantidadHablantes,
+        resultado.segmentosPorHablante,
         audioGuardado,
       );
 
@@ -75,10 +76,27 @@ export class AudioUploadService {
         'Transcripción completada correctamente',
       );
 
-      return {
-        url: publicUrl,
-        transcripcion: resultado.texto,
-      };
+      const transcripcion = await this.transcripcionService.crearDesdeSpeech(
+  resultado.texto,
+  resultado.palabrasConTimestamps,
+  resultado.cantidadHablantes,
+  resultado.segmentosPorHablante,
+  audioGuardado,
+);
+
+await this.transcripcionService.registrarEvento(
+  audioGuardado,
+  'TRANSCRIPCION',
+  'Transcripción completada correctamente',
+);
+
+return {
+  url: publicUrl,
+  transcripcion: await this.transcripcionService.obtenerPorIdConPalabrasClave(
+    transcripcion.id,
+  ),
+};
+
     } catch (error) {
       console.error('❌ Error al transcribir:', error);
       await this.transcripcionService.registrarEvento(

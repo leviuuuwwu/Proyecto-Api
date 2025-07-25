@@ -31,4 +31,12 @@ export class Transcripcion {
 
   @CreateDateColumn()
   creadoEn: Date;
+
+  @Column({ type: 'jsonb', nullable: true })
+  segmentosPorHablante: {
+    speaker: number;
+    inicio: number;
+    fin: number;
+    texto: string;
+  }[];
 }
